@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>校園身分認證</title>
+  <!-- 引入 Tailwind CSS 加速排版與美化 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入 LINE LIFF SDK -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    /* 移除 iOS 點擊高亮 */
+    * { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4 text-slate-800 font-sans">
+
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-100 p-6 sm:p-8">
+    
+    <!-- 標題區域 -->
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-50 text-blue-600 rounded-full mb-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight text-slate-900">校園身分認證綁定</h1>
+      <p class="text-xs text-slate-500 mt-1">請填寫基本資料並驗證學校信箱以完成簽到綁定</p>
+    </div>
+
+    <!-- 步驟 1：基本資料填寫 -->
+    <form id="infoForm" class="space-y-4">
+      <div>
+        <label for="studentId" class="block text-xs font-semibold text-slate-600 mb-1">學號 / 工號</label>
+        <input type="text" id="studentId" required placeholder="例如：01150000"
+          class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="name" class="block text-xs font-semibold text-slate-600 mb-1">真實姓名</label>
+          <input type="text" id="name" required placeholder="例如：王小明"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+        </div>
+        <div>
+          <label for="department" class="block text-xs font-semibold text-slate-600 mb-1">系所 / 單位</label>
+          <input type="text" id="department" required placeholder="例如：企管三A"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+        </div>
+      </div>
+
+      <!-- 學校信箱（固定後綴） -->
+      <div>
+        <label for="emailPrefix" class="block text-xs font-semibold text-slate-600 mb-1">學校電子信箱</label>
+        <div class="flex rounded-xl border border-slate-200 bg-slate-50 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition">
+          <input type="text" id="emailPrefix" required placeholder="學號或帳號"
+            class="w-full px-3.5 py-2.5 bg-transparent text-sm focus:outline-none">
+          <span class="inline-flex items-center px-3 text-xs font-medium text-slate-400 bg-slate-100 border-l border-slate-200 select-none">
+            @scu.edu.tw
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1">系統將寄送一次性驗證碼至該校園信箱</p>
+      </div>
+
+      <button type="button" id="sendOtpBtn"
+        class="w-full mt-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-500/10 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed">
+        發送驗證碼
+      </button>
+    </form>
+
+    <!-- 步驟 2：輸入 OTP 驗證碼區塊 (預設隱藏) -->
+    <div id="otpSection" class="hidden mt-6 pt-6 border-t border-dashed border-slate-200 space-y-4">
+      <div class="text-center">
+        <p class="text-xs text-slate-600">驗證信已寄出至</p>
+        <p id="targetEmailLabel" class="text-xs font-bold text-blue-600 mt-0.5"></p>
+      </div>
+
+      <div>
+        <label for="otpCode" class="block text-xs font-semibold text-slate-600 mb-1 text-center">請輸入 6 位數驗證碼</label>
+        <input type="text" id="otpCode" maxlength="6" placeholder="000000"
+          class="w-full text-center tracking-[0.5em] text-lg font-bold px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+      </div>
+
+      <button type="button" id="verifyBtn"
+        class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white text-sm font-semibold rounded-xl shadow-md shadow-emerald-500/10 transition duration-150">
+        驗證並完成身分綁定
+      </button>
+    </div>
+
+    <!-- 狀態/錯誤訊息提示區 -->
+    <div id="statusMsg" class="hidden mt-4 p-3 rounded-lg text-xs font-medium text-center"></div>
+
+  </div>
+
+  <script>
+    // ===== 1. LIFF 與系統設定 =====
+    // 請替換為你在 LINE Developers 申請到的 LIFF ID
+    const MY_LIFF_ID = "YOUR_LIFF_ID_HERE";
+    // 你的後端 API 基本路徑
+    const API_BASE_URL = "https://your-api-domain.com/api";
+
+    let lineUserId = null;
+    let countdownTimer = null;
+
+    // 初始化 LIFF
+    async function initializeLiff() {
+      try {
+        await liff.init({ liffId: MY_LIFF_ID });
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          lineUserId = profile.userId;
+          console.log("LINE UID 取得成功:", lineUserId);
+        } else {
+          // 若在外部瀏覽器開啟，引導登入
+          liff.login();
+        }
+      } catch (err) {
+        console.warn("LIFF 初始化失敗或未在 LINE 環境中:", err);
+        // 本機開發測試時若無 LIFF 環境，可暫時給一個 mock uid
+        lineUserId = "MOCK_USER_ID_FOR_LOCAL_TEST";
+      }
+    }
+    initializeLiff();
+
+    // ===== 2. DOM 元素宣告 =====
+    const sendOtpBtn = document.getElementById("sendOtpBtn");
+    const otpSection = document.getElementById("otpSection");
+    const targetEmailLabel = document.getElementById("targetEmailLabel");
+    const verifyBtn = document.getElementById("verifyBtn");
+    const statusMsg = document.getElementById("statusMsg");
+
+    // ===== 3. 發送驗證碼 (Step 1) =====
+    sendOtpBtn.addEventListener("click", async () => {
+      const studentId = document.getElementById("studentId").value.trim();
+      const name = document.getElementById("name").value.trim();
+      const department = document.getElementById("department").value.trim();
+      const emailPrefix = document.getElementById("emailPrefix").value.trim();
+
+      if (!studentId || !name || !department || !emailPrefix) {
+        showStatus("請完整填寫所有欄位資訊！", "error");
+        return;
+      }
+
+      const fullEmail = `${emailPrefix}@scu.edu.tw`;
+
+      // 鎖定按鈕防止連點
+      sendOtpBtn.disabled = true;
+      sendOtpBtn.innerText = "發送中...";
+
+      try {
+        // 呼叫後端發送驗證信 API
+        const response = await fetch(`${API_BASE_URL}/send-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentId,
+            name,
+            department,
+            email: fullEmail,
+            lineUserId
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showStatus("驗證信已寄出，請至信箱收取驗證碼", "success");
+          targetEmailLabel.innerText = fullEmail;
+          otpSection.classList.remove("hidden");
+          startCountdown(60); // 啟動 60 秒倒數計時防刷
+        } else {
+          throw new Error(data.message || "發送失敗，請稍後再試");
+        }
+      } catch (err) {
+        showStatus(err.message, "error");
+        sendOtpBtn.disabled = false;
+        sendOtpBtn.innerText = "發送驗證碼";
+      }
+    });
+
+    // ===== 4. 驗證 OTP 並完成綁定 (Step 2) =====
+    verifyBtn.addEventListener("click", async () => {
+      const otpCode = document.getElementById("otpCode").value.trim();
+      const studentId = document.getElementById("studentId").value.trim();
+      const name = document.getElementById("name").value.trim();
+      const department = document.getElementById("department").value.trim();
+      const fullEmail = `${document.getElementById("emailPrefix").value.trim()}@scu.edu.tw`;
+
+      if (otpCode.length !== 6) {
+        showStatus("請輸入完整的 6 位數驗證碼", "error");
+        return;
+      }
+
+      verifyBtn.disabled = true;
+      verifyBtn.innerText = "驗證中...";
+
+      try {
+        // 呼叫後端驗證 API
+        const response = await fetch(`${API_BASE_URL}/verify-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentId,
+            name,
+            department,
+            email: fullEmail,
+            otpCode,
+            lineUserId
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showStatus("身分綁定成功！即將關閉視窗...", "success");
+          setTimeout(() => {
+            if (liff.isInClient()) {
+              liff.closeWindow(); // 關閉 LINE 內嵌視窗
+            } else {
+              alert("綁定成功！");
+            }
+          }, 1500);
+        } else {
+          throw new Error(data.message || "驗證碼錯誤或已過期");
+        }
+      } catch (err) {
+        showStatus(err.message, "error");
+        verifyBtn.disabled = false;
+        verifyBtn.innerText = "驗證並完成身分綁定";
+      }
+    });
+
+    // ===== 工具函式：倒數計時器 =====
+    function startCountdown(seconds) {
+      let remaining = seconds;
+      sendOtpBtn.disabled = true;
+      sendOtpBtn.innerText = `重新發送 (${remaining}s)`;
+
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(countdownTimer);
+          sendOtpBtn.disabled = false;
+          sendOtpBtn.innerText = "重新發送驗證碼";
+        } else {
+          sendOtpBtn.innerText = `重新發送 (${remaining}s)`;
+        }
+      }, 1000);
+    }
+
+    // ===== 工具函式：狀態提示 =====
+    function showStatus(msg, type) {
+      statusMsg.innerText = msg;
+      statusMsg.classList.remove("hidden", "bg-red-50", "text-red-700", "bg-emerald-50", "text-emerald-700");
+      if (type === "error") {
+        statusMsg.classList.add("bg-red-50", "text-red-700");
+      } else {
+        statusMsg.classList.add("bg-emerald-50", "text-emerald-700");
+      }
+    }
+  </script>
+</body>
+</html>
